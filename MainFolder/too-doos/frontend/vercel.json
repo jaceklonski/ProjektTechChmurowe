@@ -1,0 +1,8 @@
+{
+    "functions": {
+      "api/reminder.js": {
+        "schedule": "*/1 * * * *"
+      }
+    }
+  }
+  

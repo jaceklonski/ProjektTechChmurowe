@@ -1,0 +1,57 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: todo
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: tododb
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - todo-net
+
+  auth-service:
+    build: ./auth-service
+    ports:
+      - "4000:4000"
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgres://todo:secret@postgres:5432/tododb
+      JWT_SECRET: your-secret-key
+    networks:
+      - todo-net
+
+  task-service:
+    build: ./task-service
+    ports:
+      - "5000:5000"
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgres://todo:secret@postgres:5432/tododb
+    networks:
+      - todo-net
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - auth-service
+      - task-service
+    environment:
+      NEXT_PUBLIC_AUTH_URL: http://auth-service:4000
+      NEXT_PUBLIC_API_URL: http://task-service:5000
+    networks:
+      - todo-net
+
+volumes:
+  pgdata:
+
+networks:
+  todo-net:
+    driver: bridge

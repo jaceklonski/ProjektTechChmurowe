@@ -1,0 +1,77 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String     @id @default(uuid())
+  email     String     @unique
+  password  String
+  projects  Project[]  @relation("UserProjects")
+  tasks     Task[]     @relation("UserTasks")
+  comments  Comment[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  notifications  Notification[] @relation("UserNotifications")
+  role      Role       @default(USER)
+}
+
+model Project {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  users       User[]    @relation("UserProjects")
+  tasks       Task[]    @relation("ProjectTasks")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Task {
+  id          String      @id @default(uuid())
+  title       String
+  description String?
+  priority    Boolean
+  due_to      DateTime
+  status      TaskStatus  @default(OPEN)
+  project     Project?    @relation("ProjectTasks", fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String?
+  users       User[]      @relation("UserTasks")
+  comments    Comment[]
+  reminderSent  Boolean   @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now())
+  user      User     @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+}
+
+enum Role {
+  USER
+  ADMIN
+}
