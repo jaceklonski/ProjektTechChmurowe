@@ -20,7 +20,6 @@ router.get('/', async (req, res) => {
 
     if (!task) return res.status(404).json({ error: 'Zadanie nie zostało znalezione.' });
 
-    // 👇 UWAGA: zakładamy brak sesji, więc na razie bez autoryzacji
     return res.status(200).json({ comments: task.comments });
   } catch (err) {
     console.error('GET /api/tasks/:taskId/comments error:', err);
@@ -57,6 +56,41 @@ router.post('/', async (req, res) => {
     return res.status(201).json({ comment });
   } catch (err) {
     console.error('POST /api/tasks/:taskId/comments error:', err);
+    return res.status(500).json({ error: 'Wewnętrzny błąd serwera.' });
+  }
+});
+
+router.delete('/:commentId', async (req, res) => {
+  const { taskId, commentId } = req.params;
+  const userEmail = req.headers['x-user-email'];
+
+  if (!userEmail) return res.status(401).json({ error: 'Brak autoryzacji.' });
+
+  try {
+    const comment = await prisma.comment.findUnique({
+      where: { id: commentId },
+      include: {
+        user: true,
+        task: {
+          include: { users: true }
+        }
+      }
+    });
+
+    if (!comment) return res.status(404).json({ error: 'Komentarz nie został znaleziony.' });
+
+    const isOwner = comment.user.email === userEmail;
+    const isAssigned = comment.task.users.some(user => user.email === userEmail);
+
+    if (!isOwner && !isAssigned) {
+      return res.status(403).json({ error: 'Brak uprawnień do usunięcia komentarza.' });
+    }
+
+    await prisma.comment.delete({ where: { id: commentId } });
+
+    return res.status(200).json({ message: 'Komentarz został usunięty.' });
+  } catch (err) {
+    console.error(`DELETE /api/tasks/${taskId}/comments/${commentId} error:`, err);
     return res.status(500).json({ error: 'Wewnętrzny błąd serwera.' });
   }
 });

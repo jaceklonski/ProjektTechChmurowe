@@ -34,7 +34,7 @@ export default function useTasks() {
 
   const fetchTasks = async () => {
     try {
-      const res = await fetch('/api/tasks');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tasks`);
       if (!res.ok) {
         throw new Error('Error');
       }
@@ -49,7 +49,7 @@ export default function useTasks() {
 
   const markAsDone = async (taskId: string) => {
     try {
-      const res = await fetch(`/api/tasks/${taskId}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tasks/${taskId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
