@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: db-data
+  labels:
+    app: too-doos
+    component: database
+spec:
+  storageClassName: standard        # jawne wskazanie StorageClass
+  volumeMode: Filesystem            # tryb plikowy
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi

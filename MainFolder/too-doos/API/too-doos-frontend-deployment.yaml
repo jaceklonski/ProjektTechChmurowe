@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: too-doos-frontend
+  labels:
+    app: too-doos-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: too-doos-frontend
+  template:
+    metadata:
+      labels:
+        app: too-doos-frontend
+    spec:
+      containers:
+        - name: too-doos-frontend
+          image: too-doos-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          env:
+            # zmienne z ConfigMap (jeśli Ci się przydadzą inne)
+            - name: NEXT_PUBLIC_API_URL
+              value: "http://localhost:5001"
+            - name: NEXTAUTH_URL
+              value: "http://localhost:3000"
+            # serwerowa część NextAuth (widoczna tylko w kontenerze)
+            - name: NEXTAUTH_SECRET
+              value: "dashdakjhsdklahgsjdk"
+            - name: KEYCLOAK_ISSUER
+              value: "http://auth-keycloak:8080/realms/too-doos"
+            - name: KEYCLOAK_CLIENT_ID
+              value: "frontend"
+            - name: KEYCLOAK_CLIENT_SECRET
+              value: "xTAjSJNEAAqZl7TsikkZZ0fq3RlwfQYw"
+            # publiczne zmienne dla client-side (NextAuth w przeglądarce)
+            - name: NEXT_PUBLIC_KEYCLOAK_ISSUER
+              value: "http://localhost:8080/realms/too-doos"
+            - name: NEXT_PUBLIC_KEYCLOAK_REALM
+              value: "too-doos"
+            - name: DEBUG
+              value: "next-auth:*"
+            - name: NEXTAUTH_DEBUG
+              value: "true"
+      restartPolicy: Always
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: too-doos-frontend
+  labels:
+    app: too-doos-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: too-doos-frontend
+  template:
+    metadata:
+      labels:
+        app: too-doos-frontend
+    spec:
+      containers:
+        - name: too-doos-frontend
+          image: too-doos-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          env:
+            # zmienne z ConfigMap (jeśli Ci się przydadzą inne)
+            - name: NEXT_PUBLIC_API_URL
+              value: "http://localhost:5000"
+            - name: NEXTAUTH_URL
+              value: "http://localhost:3000"
+            # serwerowa część NextAuth (widoczna tylko w kontenerze)
+            - name: NEXTAUTH_SECRET
+              value: "dashdakjhsdklahgsjdk"
+            - name: KEYCLOAK_ISSUER
+              value: "http://auth-keycloak:8080/realms/too-doos"
+            - name: KEYCLOAK_CLIENT_ID
+              value: "frontend"
+            - name: KEYCLOAK_CLIENT_SECRET
+              value: "xTAjSJNEAAqZl7TsikkZZ0fq3RlwfQYw"
+            # publiczne zmienne dla client-side (NextAuth w przeglądarce)
+            - name: NEXT_PUBLIC_KEYCLOAK_ISSUER
+              value: "http://localhost:8080/realms/too-doos"
+            - name: NEXT_PUBLIC_KEYCLOAK_REALM
+              value: "too-doos"
+            - name: DEBUG
+              value: "next-auth:*"
+            - name: NEXTAUTH_DEBUG
+              value: "true"
+      restartPolicy: Always

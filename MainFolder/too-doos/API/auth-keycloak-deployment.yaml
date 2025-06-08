@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-keycloak
+  labels:
+    io.kompose.service: auth-keycloak
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: auth-keycloak
+  template:
+    metadata:
+      labels:
+        io.kompose.service: auth-keycloak
+    spec:
+      containers:
+        - name: auth-keycloak
+          image: quay.io/keycloak/keycloak:24.0.4
+          args:
+            - start-dev
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          env:
+            - name: KC_DB
+              value: postgres
+            - name: KC_DB_URL_HOST
+              value: keycloak-db
+            - name: KC_DB_URL_DATABASE
+              value: keycloak
+            - name: KC_DB_USERNAME
+              value: keycloak
+            - name: KC_DB_PASSWORD
+              value: keycloak
+            - name: KEYCLOAK_ADMIN
+              value: admin
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              value: admin
+            - name: KC_HEALTH_ENABLED
+              value: "true"
+            - name: KC_HEALTH_LIVENESS_ENABLED
+              value: "true"
+            - name: KC_HEALTH_READINESS_ENABLED
+              value: "true"
+          # Trwałe przechowywanie danych Keycloak
+          volumeMounts:
+            - name: keycloak-data
+              mountPath: /opt/keycloak/data
+          # Zamiast exec-probes, HTTP GET:
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # (opcjonalnie) zasoby
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+      volumes:
+        - name: keycloak-data
+          persistentVolumeClaim:
+            claimName: keycloak-db-data
+      # (opcjonalnie) uruchom jako nie-root
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000

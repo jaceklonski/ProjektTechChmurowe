@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-env-local
+  labels:
+    app: too-doos
+    component: frontend
+data:
+  KEYCLOAK_CLIENT_ID:          frontend
+  KEYCLOAK_CLIENT_SECRET:      Xfrux8GzRVLide9FAlmcHxpC5kKrb9Wj
+  KEYCLOAK_ISSUER:             http://auth-keycloak:8080/realms/too-doos
+  NEXT_PUBLIC_API_URL:         http://too-doos-api:5000
+  NEXT_PUBLIC_KEYCLOAK_ISSUER: http://auth-keycloak:8080/realms/too-doos
+  NEXT_PUBLIC_KEYCLOAK_REALM:  too-doos
+  NEXTAUTH_SECRET:             dashdakjhsdklahgsjdk
+  NEXTAUTH_URL:                http://too-doos-frontend:3000
