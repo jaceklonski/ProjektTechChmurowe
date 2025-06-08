@@ -20,8 +20,17 @@
     ],
     "paths": {
       "@/*": ["./*"]
-    }
+    },
+    "types": ["next-auth"]
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "components/Navigation.js", "lib/reminder.js"],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+
+    // DODAJ TUTAJ ścieżkę do własnych plików .d.ts:
+    "types/**/*.d.ts"
+  ],
   "exclude": ["node_modules"]
 }

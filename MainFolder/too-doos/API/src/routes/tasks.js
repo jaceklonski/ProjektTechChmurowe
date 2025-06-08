@@ -1,15 +1,34 @@
 const express = require('express');
 const router = express.Router();
 const prisma = require('../prisma');
+const { verifyToken } = require('../middleware/auth');
 
-// GET /api/tasks
-router.get('/', async (req, res) => {
+router.get('/', verifyToken, async (req, res) => {
+  const userEmail = req.auth?.email;
+  if (!userEmail) {
+    return res.status(401).json({ error: 'Nie można zidentyfikować użytkownika.' });
+  }
+
   try {
     const tasks = await prisma.task.findMany({
+      where: {
+        users: {
+          some: {
+            email: userEmail,
+          },
+        },
+      },
       include: {
         users: { select: { id: true, email: true } },
-        comments: true,
+        comments: {
+          include: {
+            user: { select: { id: true, email: true } },
+          },
+        },
         project: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
       },
     });
     res.status(200).json({ tasks });
@@ -19,9 +38,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-
-// POST /api/tasks - tworzenie nowego zadania
-router.post('/', async (req, res) => {
+router.post('/', verifyToken, async (req, res) => {
   const {
     title,
     description,
@@ -30,17 +47,11 @@ router.post('/', async (req, res) => {
     due_to,
     due_time,
     projectId,
-    assignees
+    assignees,
   } = req.body;
 
-  if (!title) {
-    return res.status(400).json({ error: 'Tytuł jest wymagany.' });
-  }
-  if (priority === undefined) {
-    return res.status(400).json({ error: 'Pole "priority" jest wymagane.' });
-  }
-  if (!due_to) {
-    return res.status(400).json({ error: 'Pole "due_to" jest wymagane.' });
+  if (!title || priority === undefined || !due_to) {
+    return res.status(400).json({ error: 'Tytuł, priorytet i data są wymagane.' });
   }
 
   let dueDateString = due_to;
@@ -60,43 +71,44 @@ router.post('/', async (req, res) => {
 
   try {
     let connectUsers = [];
+    const userEmail = req.auth?.email;
 
-    if (assignees && assignees.length > 0) {
-      const uniqueEmails = Array.from(
-        new Set(assignees.map((email) => email.trim().toLowerCase()))
-      );
+    if (assignees?.length > 0) {
+      const uniqueEmails = [...new Set(assignees.map(email => email.trim().toLowerCase()))];
 
       const users = await prisma.user.findMany({
         where: {
-          email: {
-            in: uniqueEmails,
-          },
+          email: { in: uniqueEmails },
         },
-        select: {
-          id: true,
-          email: true,
-        },
+        select: { id: true, email: true },
       });
 
-      const foundEmails = users.map((user) => user.email);
-      const notFoundEmails = uniqueEmails.filter(
-        (email) => !foundEmails.includes(email)
-      );
+      const foundEmails = users.map(user => user.email);
+      const notFoundEmails = uniqueEmails.filter(email => !foundEmails.includes(email));
 
       if (notFoundEmails.length > 0) {
         return res.status(400).json({
-          error: `Nie znaleziono użytkowników z emailami: ${notFoundEmails.join(', ')}`,
+          error: `Nie znaleziono użytkowników: ${notFoundEmails.join(', ')}`,
         });
       }
 
-      connectUsers = users.map((user) => ({ id: user.id }));
+      connectUsers = users.map(user => ({ id: user.id }));
     }
 
     if ((!assignees || assignees.length === 0) && !projectId) {
-      // Tutaj normalnie pobierasz "twórcę" z sesji — na razie pomijamy
-      return res
-        .status(400)
-        .json({ error: 'Brak przypisania do użytkownika lub projektu.' });
+      if (!userEmail) {
+        return res.status(400).json({ error: 'Nie można zidentyfikować użytkownika.' });
+      }
+
+      const currentUser = await prisma.user.findUnique({
+        where: { email: userEmail },
+      });
+
+      if (!currentUser) {
+        return res.status(404).json({ error: 'Użytkownik nie istnieje.' });
+      }
+
+      connectUsers = [{ id: currentUser.id }];
     }
 
     let projectName = '';
@@ -109,7 +121,7 @@ router.post('/', async (req, res) => {
         return res.status(404).json({ error: 'Projekt nie został znaleziony.' });
       }
       projectName = project.name;
-      connectUsers = project.users.map((user) => ({ id: user.id }));
+      connectUsers = project.users.map(user => ({ id: user.id }));
     }
 
     const newTask = await prisma.task.create({
@@ -120,9 +132,7 @@ router.post('/', async (req, res) => {
         priority,
         due_to: dueDate,
         ...(projectId ? { project: { connect: { id: projectId } } } : {}),
-        ...(connectUsers.length > 0
-          ? { users: { connect: connectUsers } }
-          : {}),
+        ...(connectUsers.length > 0 ? { users: { connect: connectUsers } } : {}),
       },
       include: {
         users: { select: { id: true, email: true } },
@@ -151,32 +161,93 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.get('/:taskId', async (req, res) => {
+router.get('/:taskId', verifyToken, async (req, res) => {
+  const userEmail = req.auth?.email;
+  if (!userEmail) {
+    return res.status(401).json({ error: 'Nie można zidentyfikować użytkownika.' });
+  }
+
   try {
     const { taskId } = req.params;
 
-    const task = await prisma.task.findUnique({
-      where: { id: taskId },
+    const task = await prisma.task.findFirst({
+      where: {
+        id: taskId,
+        users: {
+          some: { email: userEmail },
+        },
+      },
       include: {
         users: { select: { id: true, email: true } },
         comments: {
           include: {
-            user: { select: { id: true, email: true } }
-          }
+            user: { select: { id: true, email: true } },
+          },
         },
-        project: { select: { id: true, name: true } }
-      }
+        project: { select: { id: true, name: true } },
+      },
     });
 
     if (!task) {
-      return res.status(404).json({ error: 'Zadanie nie zostało znalezione.' });
+      return res.status(404).json({ error: 'Zadanie nie zostało znalezione lub brak dostępu.' });
     }
-
-    // (opcjonalnie: sprawdzenie autoryzacji – jeśli w przyszłości będzie auth)
 
     return res.status(200).json(task);
   } catch (error) {
     console.error('GET /api/tasks/:taskId error:', error);
+    return res.status(500).json({ error: 'Wewnętrzny błąd serwera.' });
+  }
+});
+
+router.patch('/:taskId', verifyToken, async (req, res) => {
+  const { taskId } = req.params;
+  const { status } = req.body;
+  if (!status) {
+    return res.status(400).json({ error: 'Status jest wymagany.' });
+  }
+
+  const userEmail = req.auth?.email;
+  if (!userEmail) {
+    return res.status(400).json({ error: 'Nie można zidentyfikować użytkownika.' });
+  }
+
+  try {
+    const currentUser = await prisma.user.findUnique({
+      where: { email: userEmail },
+      select: { id: true },
+    });
+    if (!currentUser) {
+      return res.status(404).json({ error: 'Użytkownik nie istnieje.' });
+    }
+
+    const existingTask = await prisma.task.findFirst({
+      where: {
+        id: taskId,
+        users: {
+          some: { id: currentUser.id },
+        },
+      },
+      include: { users: { select: { id: true } } },
+    });
+    if (!existingTask) {
+      return res.status(404).json({ error: 'Zadanie nie zostało znalezione lub brak dostępu.' });
+    }
+
+    const updatedTask = await prisma.task.update({
+      where: { id: taskId },
+      data: { status },
+      include: {
+        users: { select: { id: true, email: true } },
+        comments: {
+          include: { user: { select: { id: true, email: true } } },
+        },
+        project: { select: { id: true, name: true } },
+      },
+    });
+
+    return res.status(200).json(updatedTask);
+  } catch (error) {
+    console.error(`PATCH /api/tasks/${taskId} error:`, error);
     return res.status(500).json({ error: 'Wewnętrzny błąd serwera.' });
   }
 });

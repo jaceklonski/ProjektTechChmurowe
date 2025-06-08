@@ -1,12 +1,11 @@
-"use client";
+// app/tasks/[taskId]/page.tsx
+'use client';
 
 import { useRouter, useParams } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
-import { useSession } from 'next-auth/react';
-import { format } from 'date-fns';
+import { useSession, signIn } from 'next-auth/react';
 import AddComment from '@/components/AddComment';
 import CommentItem from '@/components/CommentItem';
-import TaskActions from '@/components/TaskActions';
 
 interface User {
   id: string;
@@ -37,37 +36,50 @@ export default function TaskDetailsPage() {
   const router = useRouter();
   const params = useParams() as { taskId: string };
   const { taskId } = params;
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
 
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchTask = useCallback(async () => {
+    if (status !== 'authenticated') return;
+    setLoading(true);
+    setError(null);
+
     try {
-      setLoading(true);
-      const res = await fetch(`/api/tasks/${taskId}`);
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/tasks/${taskId}`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.accessToken}`,
+          },
+        }
+      );
+      const data = await res.json();
       if (!res.ok) {
         if (res.status === 401) {
-          router.push('/login');
+          signIn('keycloak');
           return;
         }
-        throw new Error('Nie udało się pobrać zadania.');
+        throw new Error(data.error || 'Nie udało się pobrać zadania.');
       }
-      const data = await res.json();
-      setTask(data);
+      setTask(data as Task);
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [taskId, router]);
+  }, [taskId, session, status]);
 
   useEffect(() => {
-    if (taskId) {
+    if (status === 'authenticated') {
       fetchTask();
+    } else if (status === 'unauthenticated') {
+      signIn('keycloak');
     }
-  }, [taskId, fetchTask]);
+  }, [status, fetchTask]);
 
   const handleCommentAdded = useCallback(() => {
     fetchTask();
@@ -78,30 +90,31 @@ export default function TaskDetailsPage() {
   }, [fetchTask]);
 
   const markAsDone = async () => {
-    if (!task) return;
+    if (!task || status !== 'authenticated') return;
 
     try {
-      const res = await fetch(`/api/tasks/${task.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status: 'DONE' }),
-      });
-
-      const updatedTask: Task = await res.json();
-
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/tasks/${task.id}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.accessToken}`,
+          },
+          body: JSON.stringify({ status: 'DONE' }),
+        }
+      );
+      const data = await res.json();
       if (!res.ok) {
-        throw new Error(updatedTask.error || 'Nie udało się zaktualizować zadania.');
+        throw new Error((data as any).error || 'Nie udało się zaktualizować zadania.');
       }
-
-      setTask(updatedTask);
+      setTask(data as Task);
     } catch (err: any) {
       setError(err.message);
     }
   };
 
-  if (loading) {
+  if (loading || status === 'loading') {
     return <div>Loading...</div>;
   }
 
@@ -124,37 +137,32 @@ export default function TaskDetailsPage() {
 
   return (
     <main>
-      <div className='content'>
-        <div className='box'>
+      <div className="content">
+        <div className="box">
           <h1>{task.title}</h1>
           <p>{task.description}</p>
           <p>
             Due Date: {formattedDate} (
-            {remainingDays >= 0
-              ? `${remainingDays}d remaining`
-              : `${-remainingDays}d overdue`}
+            {remainingDays >= 0 ? `${remainingDays}d remaining` : `${-remainingDays}d overdue`}
             )
           </p>
           <p>Status: {task.status}</p>
           <p>Assigned to: {task.users.map(user => user.email).join(', ')}</p>
-          <div className='box3'>
-            <TaskActions taskId={task.id} />
-            <div className='box3'>
+          <div className="box3">
             {task.status !== 'DONE' && (
               <button onClick={markAsDone} style={{ backgroundColor: '#10943c' }}>
-              Mark as DONE
-            </button>
+                Mark as DONE
+              </button>
             )}
-            </div>
           </div>
         </div>
 
-        <div className='content2'>
+        <div className="content2">
           <h2>Comments</h2>
           {task.comments.length === 0 ? (
             <p>No comments yet.</p>
           ) : (
-            <div className='box'>
+            <div className="box">
               {task.comments.map(comment => (
                 <CommentItem
                   key={comment.id}

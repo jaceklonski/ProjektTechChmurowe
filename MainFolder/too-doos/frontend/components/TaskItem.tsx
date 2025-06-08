@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useRouter } from 'next/navigation';
 import { format, differenceInDays } from 'date-fns';
@@ -17,7 +17,7 @@ interface TaskItemProps {
   markAsDone: (taskId: string) => void;
 }
 
-const TaskItem: React.FC<TaskItemProps> = ({ task, markAsDone }) => {
+export default function TaskItem({ task, markAsDone }: TaskItemProps) {
   const router = useRouter();
   const dueDate = new Date(task.due_to);
   const formattedDate = format(dueDate, 'dd MMM');
@@ -28,34 +28,35 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, markAsDone }) => {
     router.push(`/tasks/${task.id}`);
   };
 
-  const handleButtonClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleDoneClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
-    markAsDone(task.id);
+    if (task.status !== 'DONE') {
+      markAsDone(task.id);
+    }
   };
 
   return (
     <div className="task">
-      <div className='info' onClick={handleClick}>
+      <div className="info" onClick={handleClick} style={{ cursor: 'pointer' }}>
         <h2>{task.title}</h2>
         <p>{task.description}</p>
-        <p className='details'>
+        <p className="details">
           {formattedDate} (
           {remainingDays >= 0
             ? `${remainingDays}d remaining`
             : `${-remainingDays}d overdue`}
           )
         </p>
-        <p className='details'>Status: {task.status}</p>
+        <p className="details">Status: {task.status}</p>
       </div>
-      <div className='Done' onClick={handleButtonClick}>
-        <div
-          disabled={task.status === 'DONE'}
-        >
-          {task.status === 'DONE' ? 'DONE' : '✔'}
-        </div>
-      </div>
+      <button
+        className="Done"
+        onClick={handleDoneClick}
+        disabled={task.status === 'DONE'}
+        style={{ cursor: task.status === 'DONE' ? 'not-allowed' : 'pointer' }}
+      >
+        {task.status === 'DONE' ? 'DONE' : '✔'}
+      </button>
     </div>
   );
-};
-
-export default TaskItem;
+}

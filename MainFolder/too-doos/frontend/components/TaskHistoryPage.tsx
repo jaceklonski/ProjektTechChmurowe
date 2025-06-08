@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import TaskList from '@/components/TaskList';
-import useTasks from '@/hooks/useTasks';
+import useTasks, { Task } from '@/hooks/useTasks';
 
 export default function TasksHistoryPage() {
   const router = useRouter();

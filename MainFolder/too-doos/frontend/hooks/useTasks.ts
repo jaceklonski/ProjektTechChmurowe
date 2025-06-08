@@ -1,6 +1,7 @@
-'use client'
+'use client';
 
 import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 
 interface User {
   id: string;
@@ -14,7 +15,7 @@ interface Comment {
   user: User;
 }
 
-interface Task {
+export interface Task {
   id: string;
   title: string;
   description: string;
@@ -28,19 +29,43 @@ interface Task {
 }
 
 export default function useTasks() {
+  const { data: session, status } = useSession();
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchTasks = async () => {
+    setLoading(true);
+    setError(null);
+
+    if (!session?.accessToken) {
+      setError('Brak tokenu sesji.');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tasks`);
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/tasks`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.accessToken}`,
+          },
+        }
+      );
+
       if (!res.ok) {
-        throw new Error('Error');
+        const text = await res.text();
+        console.error('Nieprawidłowa odpowiedź:', text);
+        throw new Error('Błąd pobierania zadań');
       }
+
       const data = await res.json();
+      // Zakładamy, że API zwraca { tasks: Task[] }
       setTasks(data.tasks);
     } catch (err: any) {
+      console.error('Błąd:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -48,35 +73,47 @@ export default function useTasks() {
   };
 
   const markAsDone = async (taskId: string) => {
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tasks/${taskId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status: 'DONE' }),
-      });
+    if (!session?.accessToken) {
+      setError('Brak tokenu sesji');
+      return;
+    }
 
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/tasks/${taskId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.accessToken}`,
+          },
+          body: JSON.stringify({ status: 'DONE' }),
+        }
+      );
+
+      const data = await res.json();
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Error: Could not update Task');
+        throw new Error(data.error || 'Nie udało się zaktualizować zadania');
       }
 
-      const updatedTask: Task = await res.json();
-
-      setTasks(prevTasks =>
-        prevTasks.map(task =>
-          task.id === taskId ? { ...task, status: updatedTask.status } : task
-        )
+      const updatedTask: Task = data;
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? updatedTask : t))
       );
     } catch (err: any) {
+      console.error('Błąd:', err);
       setError(err.message);
     }
   };
 
   useEffect(() => {
-    fetchTasks();
-  }, []);
+    if (status === 'authenticated') {
+      fetchTasks();
+    } else if (status === 'unauthenticated') {
+      setTasks([]);
+      setLoading(false);
+    }
+  }, [status]);
 
   return { tasks, loading, error, markAsDone };
 }

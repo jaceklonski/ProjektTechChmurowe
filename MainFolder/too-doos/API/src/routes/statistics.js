@@ -1,39 +1,79 @@
 const express = require('express');
 const router = express.Router();
 const prisma = require('../prisma');
+const { verifyToken } = require('../middleware/auth');
 
-router.get('/', async (req, res) => {
+router.get('/', verifyToken, async (req, res) => {
   try {
     const now = new Date();
+    const startOfToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    );
+    const dateWeek = new Date(startOfToday);
+    dateWeek.setDate(dateWeek.getDate() - 7);
+    const dateMonth = new Date(startOfToday);
+    dateMonth.setMonth(dateMonth.getMonth() - 1);
+    const dateYear = new Date(startOfToday);
+    dateYear.setFullYear(dateYear.getFullYear() - 1);
 
-    const startOfToday = new Date(now);
-    startOfToday.setHours(0, 0, 0, 0);
+    const tasksToday = await prisma.task.count({
+      where: {
+        createdAt: {
+          gte: startOfToday,
+        },
+      },
+    });
 
-    const day = startOfToday.getDay();
-    const diffToMonday = day === 0 ? -6 : 1 - day;
-    const startOfWeek = new Date(startOfToday);
-    startOfWeek.setDate(startOfToday.getDate() + diffToMonday);
+    const tasksWeek = await prisma.task.count({
+      where: {
+        createdAt: {
+          gte: dateWeek,
+        },
+      },
+    });
 
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const tasksMonth = await prisma.task.count({
+      where: {
+        createdAt: {
+          gte: dateMonth,
+        },
+      },
+    });
 
-    const [tasksToday, tasksWeek, tasksMonth, tasksYear, usersCount, totalTasks, activeUsersWeek] = await Promise.all([
-      prisma.task.count({ where: { createdAt: { gte: startOfToday } } }),
-      prisma.task.count({ where: { createdAt: { gte: startOfWeek } } }),
-      prisma.task.count({ where: { createdAt: { gte: startOfMonth } } }),
-      prisma.task.count({ where: { createdAt: { gte: startOfYear } } }),
-      prisma.user.count(),
-      prisma.task.count(),
-      prisma.user.count({
-        where: {
-          tasks: {
-            some: { createdAt: { gte: startOfWeek } }
-          }
-        }
-      }),
-    ]);
+    const tasksYear = await prisma.task.count({
+      where: {
+        createdAt: {
+          gte: dateYear,
+        },
+      },
+    });
+
+    const usersCount = await prisma.user.count();
+
+    const totalTasks = await prisma.task.count();
 
     const avgTasksPerUser = usersCount > 0 ? totalTasks / usersCount : 0;
+
+    const tasksLastWeek = await prisma.task.findMany({
+      where: {
+        createdAt: {
+          gte: dateWeek,
+        },
+      },
+      select: {
+        users: {
+          select: { id: true },
+        },
+      },
+    });
+
+    const userIdSet = new Set();
+    tasksLastWeek.forEach((task) => {
+      task.users.forEach((u) => userIdSet.add(u.id));
+    });
+    const activeUsersWeek = userIdSet.size;
 
     return res.status(200).json({
       tasksToday,
@@ -46,7 +86,9 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     console.error('GET /api/statistics error:', error);
-    return res.status(500).json({ error: 'Internal Server Error' });
+    return res
+      .status(500)
+      .json({ error: 'Wewnętrzny błąd serwera przy obliczaniu statystyk.' });
   }
 });
 

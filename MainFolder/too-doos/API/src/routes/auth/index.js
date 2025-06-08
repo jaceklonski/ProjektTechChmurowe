@@ -3,6 +3,6 @@ const router = express.Router();
 
 const registerRoute = require('./register');
 
-router.use(registerRoute); // obsługuje /register
+router.use(registerRoute);
 
 module.exports = router;

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { sendReminders } = require('../lib/reminder'); // dostosuj ścieżkę jeśli inna
+const { sendReminders } = require('../lib/reminder');
 
 router.get('/', async (req, res) => {
   try {

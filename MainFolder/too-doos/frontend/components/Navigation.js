@@ -1,21 +1,37 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useSession, signOut } from 'next-auth/react';
+import { useEffect } from 'react';
 
 export default function Navigation() {
   const router = useRouter();
+  const { data: session, status } = useSession();
 
-  const handleClick = () => {
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/login');
+    }
+  }, [status, router]);
+
+  const handleTitleClick = () => {
     router.push('/tasks');
+  };
+
+  const handleLogout = async () => {
+    await signOut({ redirect: false });
+    router.push('/login');
   };
 
   return (
     <header id="navigation">
-      <h1 onClick={handleClick} style={{ cursor: "pointer" }}>
+      <h1 onClick={handleTitleClick} style={{ cursor: 'pointer' }}>
         TooDooS
       </h1>
       <nav>
+        <Link href="/admin">Admin</Link>
+        <span> | </span>
         <Link href="/tasks">Tasks</Link>
         <span> | </span>
         <Link href="/tasks/calendar">Calendar</Link>
@@ -24,9 +40,11 @@ export default function Navigation() {
         <span> | </span>
         <Link href="/projects">Projects</Link>
         <span> | </span>
-        <Link href="/register">Register</Link>
-        <span> | </span>
-        <Link href="/login">Login</Link>
+        {status === 'authenticated' ? (
+          <Link href="/login">Logout</Link> 
+        ) : (
+          <Link href="/login">Login</Link>
+        )}
       </nav>
     </header>
   );

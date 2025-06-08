@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const prisma = require('../prisma');
 
-// Pobierz listę użytkowników (bez aktualnie zalogowanego)
 router.get('/', async (req, res) => {
   const { userEmail, userId } = req.headers;
 
@@ -31,7 +30,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Pobierz konkretnego użytkownika
 router.get('/:userId', async (req, res) => {
   const { userRole } = req.headers;
   const { userId } = req.params;
@@ -62,7 +60,6 @@ router.get('/:userId', async (req, res) => {
   }
 });
 
-// Zaktualizuj użytkownika
 router.put('/:userId', async (req, res) => {
   const { userRole } = req.headers;
   const { userId } = req.params;
@@ -91,7 +88,6 @@ router.put('/:userId', async (req, res) => {
   }
 });
 
-// Usuń użytkownika
 router.delete('/:userId', async (req, res) => {
   const { userRole } = req.headers;
   const { userId } = req.params;

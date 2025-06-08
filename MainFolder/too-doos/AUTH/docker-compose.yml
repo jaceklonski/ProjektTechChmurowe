@@ -1,9 +1,28 @@
 version: '3.8'
 
 services:
-  keycloak:
+  keycloak-db:
+    image: postgres:15-alpine
+    container_name: keycloak-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak
+    volumes:
+      - keycloak-db-data:/var/lib/postgresql/data
+    networks:
+      - common-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  auth-keycloak:
     image: quay.io/keycloak/keycloak:24.0.4
     container_name: auth-keycloak
+    restart: unless-stopped
     command: start-dev
     environment:
       KC_DB: postgres
@@ -13,27 +32,49 @@ services:
       KC_DB_PASSWORD: keycloak
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
+
+      KC_HEALTH_ENABLED: "true"
+      KC_HEALTH_LIVENESS_ENABLED: "true"
+      KC_HEALTH_READINESS_ENABLED: "true"
     ports:
       - "8080:8080"
     depends_on:
-      - keycloak-db
+      keycloak-db:
+        condition: service_healthy
     networks:
-      - auth-network
+      - common-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
 
-  keycloak-db:
-    image: postgres:15
-    container_name: keycloak-db
-    environment:
-      POSTGRES_DB: keycloak
-      POSTGRES_USER: keycloak
-      POSTGRES_PASSWORD: keycloak
+  frontend:
+    # możesz zamiast image użyć build, jeśli masz Dockerfile
+    image: node:18-alpine
+    container_name: frontend
+    working_dir: /app
     volumes:
-      - keycloak-db-data:/var/lib/postgresql/data
+      - ./frontend             # ścieżka do Twojego kodu Next.js
+      - /app/node_modules
+    command: sh -c "npm install && npm run dev"
+    ports:
+      - "3000:3000"
+    environment:
+      # jeśli używasz NextAuth/Keycloak, w razie potrzeby tu wrzuć URL i sekrety
+      NEXT_PUBLIC_KEYCLOAK_URL: http://auth-keycloak:8080/auth
+      NEXT_PUBLIC_REALM: master
+      NEXT_PUBLIC_CLIENT_ID: nextjs-client
+      # inne zmienne .env
+    depends_on:
+      auth-keycloak:
+        condition: service_healthy
     networks:
-      - auth-network
+      - common-net
 
 volumes:
   keycloak-db-data:
 
 networks:
-  auth-network:
+  common-net:
+    external: true

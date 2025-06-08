@@ -1,74 +1,50 @@
-"use client";
-
-import { useCalendar } from '@/contexts/CalendarContext';
-import { Calendar, dateFnsLocalizer, Event } from 'react-big-calendar';
-import format from 'date-fns/format';
-import parse from 'date-fns/parse';
-import startOfWeek from 'date-fns/startOfWeek';
-import getDay from 'date-fns/getDay';
-import subMonths from 'date-fns/subMonths';
-import addMonths from 'date-fns/addMonths';
+import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
+import { format, parse, startOfWeek, getDay, subMonths, addMonths } from 'date-fns';
+import { enUS } from 'date-fns/locale/en-US';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import useTasks from '@/hooks/useTasks';
+import { useCalendar } from '@/contexts/CalendarContext';
 import { useRouter } from 'next/navigation';
 
-const locales = {
-  'en-US': require('date-fns/locale/en-US'),
-};
+// 1) Twój typ zdarzenia
+interface MyEvent {
+  id: string;
+  title: string;
+  start: Date;
+  end: Date;
+  allDay: boolean;
+}
 
 const localizer = dateFnsLocalizer({
-  format,
-  parse,
-  startOfWeek,
-  getDay,
-  locales,
+  format, parse, startOfWeek, getDay,
+  locales: { 'en-US': enUS }
 });
 
 export default function CalendarComponent() {
   const { currentDate, setCurrentDate } = useCalendar();
-  const router = useRouter();
   const { tasks, loading, error } = useTasks();
+  const router = useRouter();
 
-  const events = tasks.map(task => {
-    const startDate = new Date(task.due_to);
-    return {
-      id: task.id,
-      title: task.title,
-      start: startDate,
-      end: startDate,
-      allDay: true,
-    } as Event;
-  });
-
-  const handlePrevMonth = () => {
-    setCurrentDate(subMonths(currentDate, 1));
-  };
-
-  const handleNextMonth = () => {
-    setCurrentDate(addMonths(currentDate, 1));
-  };
-
-  if (loading) return <div>Loading calendar...</div>;
-  if (error) return <div>Error loading calendar: {error}</div>;
+  const events: MyEvent[] = tasks.map(t => ({
+    id: t.id,
+    title: t.title,
+    start: new Date(t.due_to),
+    end:   new Date(t.due_to),
+    allDay: true
+  }));
 
   return (
-    <div>
-      <h1 className='title'>Calendar</h1>
-      <div>
-        <button className='button-x' onClick={handlePrevMonth}>&larr;</button>
-        <span style={{ margin: '0 10px' }}>{format(currentDate, 'MMMM yyyy')}</span>
-        <button className='button-x' onClick={handleNextMonth}>&rarr;</button>
-      </div>
-      <Calendar
-        localizer={localizer}
-        events={events}
-        date={currentDate}
-        startAccessor="start"
-        endAccessor="end"
-        style={{ height: 600, marginTop: '20px' }}
-        toolbar={false}
-        onSelectEvent={(event: Event) => router.push(`/tasks/${event.id}`)}
-      />
-  </div>
+    <Calendar<MyEvent>
+      localizer={localizer}
+      events={events}
+      date={currentDate}
+      startAccessor="start"
+      endAccessor="end"
+      style={{ height: 600 }}
+      toolbar={false}
+      onSelectEvent={(event: MyEvent) => {
+        router.push(`/tasks/${event.id}`);
+      }}
+    />
   );
 }

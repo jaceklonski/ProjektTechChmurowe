@@ -1,94 +1,82 @@
 const express = require('express');
 const router = express.Router({ mergeParams: true });
 const prisma = require('../prisma');
+const { verifyToken } = require('../middleware/auth');
 
-router.get('/', async (req, res) => {
+router.post('/', verifyToken, async (req, res) => {
   const { taskId } = req.params;
+  const { content } = req.body;
+  const userEmail = req.auth?.email;
+
+  if (!userEmail) {
+    return res.status(401).json({ error: 'Nieautoryzowany: brak tokena.' });
+  }
+  if (!content || !content.trim()) {
+    return res.status(400).json({ error: 'Treść komentarza jest wymagana.' });
+  }
 
   try {
+    const user = await prisma.user.findUnique({
+      where: { email: userEmail },
+      select: { id: true },
+    });
+    if (!user) {
+      return res.status(404).json({ error: 'Użytkownik nie istnieje.' });
+    }
+
     const task = await prisma.task.findUnique({
       where: { id: taskId },
-      include: {
-        users: { select: { id: true, email: true } },
-        comments: {
-          include: {
-            user: { select: { id: true, email: true } }
-          }
-        }
-      }
     });
+    if (!task) {
+      return res.status(404).json({ error: 'Zadanie nie zostało znalezione.' });
+    }
 
-    if (!task) return res.status(404).json({ error: 'Zadanie nie zostało znalezione.' });
-
-    return res.status(200).json({ comments: task.comments });
-  } catch (err) {
-    console.error('GET /api/tasks/:taskId/comments error:', err);
-    return res.status(500).json({ error: 'Wewnętrzny błąd serwera.' });
-  }
-});
-
-router.post('/', async (req, res) => {
-  const { taskId } = req.params;
-  const { content, userEmail } = req.body;
-
-  if (!content || !userEmail) {
-    return res.status(400).json({ error: 'Wymagane są pola "content" i "userEmail".' });
-  }
-
-  try {
-    const user = await prisma.user.findUnique({ where: { email: userEmail } });
-    if (!user) return res.status(404).json({ error: 'Użytkownik nie został znaleziony.' });
-
-    const task = await prisma.task.findUnique({ where: { id: taskId } });
-    if (!task) return res.status(404).json({ error: 'Zadanie nie zostało znalezione.' });
-
-    const comment = await prisma.comment.create({
+    const newComment = await prisma.comment.create({
       data: {
-        content,
-        taskId,
-        userId: user.id
+        content: content.trim(),
+        task: { connect: { id: taskId } },
+        user: { connect: { id: user.id } },
       },
       include: {
-        user: { select: { id: true, email: true } }
-      }
+        user: { select: { id: true, email: true } },
+      },
     });
 
-    return res.status(201).json({ comment });
+    return res.status(201).json(newComment);
   } catch (err) {
     console.error('POST /api/tasks/:taskId/comments error:', err);
     return res.status(500).json({ error: 'Wewnętrzny błąd serwera.' });
   }
 });
 
-router.delete('/:commentId', async (req, res) => {
+router.delete('/:commentId', verifyToken, async (req, res) => {
   const { taskId, commentId } = req.params;
-  const userEmail = req.headers['x-user-email'];
+  const userEmail = req.auth?.email;
 
-  if (!userEmail) return res.status(401).json({ error: 'Brak autoryzacji.' });
+  if (!userEmail) {
+    return res.status(401).json({ error: 'Nieautoryzowany: brak tokena.' });
+  }
 
   try {
     const comment = await prisma.comment.findUnique({
       where: { id: commentId },
-      include: {
-        user: true,
-        task: {
-          include: { users: true }
-        }
-      }
+      include: { user: true },
     });
-
-    if (!comment) return res.status(404).json({ error: 'Komentarz nie został znaleziony.' });
-
-    const isOwner = comment.user.email === userEmail;
-    const isAssigned = comment.task.users.some(user => user.email === userEmail);
-
-    if (!isOwner && !isAssigned) {
-      return res.status(403).json({ error: 'Brak uprawnień do usunięcia komentarza.' });
+    if (!comment) {
+      return res.status(404).json({ error: 'Komentarz nie został znaleziony.' });
+    }
+    if (comment.taskId !== taskId) {
+      return res.status(400).json({ error: 'Komentarz nie należy do podanego zadania.' });
+    }
+    if (comment.user.email !== userEmail) {
+      return res.status(403).json({ error: 'Brak uprawnień do usunięcia tego komentarza.' });
     }
 
-    await prisma.comment.delete({ where: { id: commentId } });
+    await prisma.comment.delete({
+      where: { id: commentId },
+    });
 
-    return res.status(200).json({ message: 'Komentarz został usunięty.' });
+    return res.status(200).json({ success: true });
   } catch (err) {
     console.error(`DELETE /api/tasks/${taskId}/comments/${commentId} error:`, err);
     return res.status(500).json({ error: 'Wewnętrzny błąd serwera.' });

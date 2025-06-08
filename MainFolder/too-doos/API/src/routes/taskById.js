@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const prisma = require('../prisma');
 
-// Ściągnięcie zadania po ID
 router.get('/:taskId', async (req, res) => {
   const { taskId } = req.params;
 
@@ -30,7 +29,6 @@ router.get('/:taskId', async (req, res) => {
   }
 });
 
-// Aktualizacja zadania po ID
 router.patch('/:taskId', async (req, res) => {
   const { taskId } = req.params;
   const { title, description, status, priority, due_to, assignees } = req.body;
@@ -98,7 +96,6 @@ router.patch('/:taskId', async (req, res) => {
   }
 });
 
-// Usunięcie zadania
 router.delete('/:taskId', async (req, res) => {
   const { taskId } = req.params;
 
