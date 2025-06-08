@@ -3,7 +3,7 @@
 DB_PASS=$(cat /run/secrets/db_password)
 
 # 2) ustawienie DATABASE_URL
-export DATABASE_URL="postgres://postgres:${DB_PASS}@too-doos-db:5432/too_doos?schema=public"
+export DATABASE_URL="postgres://postgres:${DB_PASS}@too-doos-db:5433/too_doos?schema=public"
 
 # 3) migracje
 npx prisma migrate deploy

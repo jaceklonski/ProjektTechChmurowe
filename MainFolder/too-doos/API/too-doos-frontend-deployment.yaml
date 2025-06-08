@@ -98,7 +98,6 @@ spec:
               value: "frontend"
             - name: KEYCLOAK_CLIENT_SECRET
               value: "xTAjSJNEAAqZl7TsikkZZ0fq3RlwfQYw"
-            # publiczne zmienne dla client-side (NextAuth w przeglądarce)
             - name: NEXT_PUBLIC_KEYCLOAK_ISSUER
               value: "http://localhost:8080/realms/too-doos"
             - name: NEXT_PUBLIC_KEYCLOAK_REALM
@@ -107,4 +106,6 @@ spec:
               value: "next-auth:*"
             - name: NEXTAUTH_DEBUG
               value: "true"
+            - name: DATABASE_URL
+              value: "postgres://postgres:postgres@too-doos-db:5433/too_doos?schema=public"
       restartPolicy: Always
