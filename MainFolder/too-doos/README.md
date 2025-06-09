@@ -160,5 +160,3 @@ echo "✅ Wszystko wgrane."
 ```
 
 ---
-
-Dokument zaktualizowano o sekcję 0, opisującą dodanie pliku `.env` w katalogu frontend oraz krok tworzenia realm w Keycloak i przebudowy kontenera.
