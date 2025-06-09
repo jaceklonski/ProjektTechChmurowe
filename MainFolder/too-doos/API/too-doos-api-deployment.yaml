@@ -18,7 +18,7 @@ spec:
           command: ["npx", "prisma", "migrate", "deploy"]
           env:
             - name: DATABASE_URL
-              value: postgres://postgres:postgres@too-doos-db:5433/too_doos?schema=public
+              value: postgres://postgres:postgres@too-doos-db:5432/too_doos?schema=public
             - name: NODE_ENV
               value: production
             - name: KEYCLOAK_ISSUER

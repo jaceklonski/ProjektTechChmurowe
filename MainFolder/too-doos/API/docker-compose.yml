@@ -7,7 +7,6 @@ services:
     environment:
       POSTGRES_DB: too_doos
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
       POSTGRES_PASSWORD: postgres
     volumes:
       - db-data:/var/lib/postgresql/data
@@ -42,8 +41,6 @@ services:
     environment:
       NODE_ENV: production
       KEYCLOAK_ISSUER: http://auth-keycloak:8080/realms/too-doos
-
-      # <<< DODANE:
       DATABASE_URL: postgresql://postgres:postgres@too-doos-db:5432/too_doos?schema=public
 
     healthcheck:

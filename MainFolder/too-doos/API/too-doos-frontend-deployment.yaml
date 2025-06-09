@@ -31,7 +31,7 @@ spec:
           env:
             # zmienne z ConfigMap (jeśli Ci się przydadzą inne)
             - name: NEXT_PUBLIC_API_URL
-              value: "http://localhost:5001"
+              value: "http://localhost:5000"
             - name: NEXTAUTH_URL
               value: "http://localhost:3000"
             # serwerowa część NextAuth (widoczna tylko w kontenerze)
@@ -97,7 +97,7 @@ spec:
             - name: KEYCLOAK_CLIENT_ID
               value: "frontend"
             - name: KEYCLOAK_CLIENT_SECRET
-              value: "xTAjSJNEAAqZl7TsikkZZ0fq3RlwfQYw"
+              value: "0tOlf6bhkUezppyMi1FXpZ0BrMcrwRwt"
             - name: NEXT_PUBLIC_KEYCLOAK_ISSUER
               value: "http://localhost:8080/realms/too-doos"
             - name: NEXT_PUBLIC_KEYCLOAK_REALM
